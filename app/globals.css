@@ -1,26 +1,110 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: oklch(0.985 0.004 95);
+  --foreground: oklch(0.22 0.02 250);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.02 250);
+  --primary: oklch(0.28 0.03 250);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.95 0.01 95);
+  --secondary-foreground: oklch(0.28 0.02 250);
+  --muted: oklch(0.96 0.008 95);
+  --muted-foreground: oklch(0.48 0.02 250);
+  --border: oklch(0.9 0.01 95);
+  --ring: oklch(0.55 0.04 250);
+  --radius: 0.5rem;
+  --status-upcoming: oklch(0.62 0.15 75);
+  --status-active: oklch(0.55 0.2 25);
+  --status-outage: oklch(0.55 0.2 25);
+  --status-completed: oklch(0.5 0.1 155);
+  --status-cancelled: oklch(0.5 0.02 250);
+  --map-upcoming: oklch(0.72 0.24 55);
+  --map-active: oklch(0.58 0.27 27);
+  --map-completed: oklch(0.64 0.24 145);
+  --map-cancelled: oklch(0.68 0.05 250);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-status-upcoming: var(--status-upcoming);
+  --color-status-active: var(--status-active);
+  --color-status-outage: var(--status-outage);
+  --color-status-completed: var(--status-completed);
+  --color-status-cancelled: var(--status-cancelled);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+.leaflet-container {
+  font: inherit;
+  background: var(--muted);
+}
+
+.outage-marker {
+  background: transparent;
+  border: 0;
+}
+
+.outage-marker-dot {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 20%);
+}
+
+.outage-marker-dot.is-selected {
+  width: 18px;
+  height: 18px;
+  box-shadow: 0 0 0 2px rgb(0 0 0 / 25%);
+}
+
+.outage-status-icon {
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 2px solid white;
+  box-shadow: 0 1px 5px rgb(0 0 0 / 35%);
+}
+
+.outage-status-icon svg {
+  width: 58%;
+  height: 58%;
+}
+
+.leaflet-tooltip.outage-preview {
+  background: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+  padding: 8px 10px;
+  white-space: normal;
+}
+
+.leaflet-tooltip.outage-preview::before {
+  border-top-color: var(--card);
 }

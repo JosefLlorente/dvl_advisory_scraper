@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Davao Light Outages
 
-## Getting Started
+Hourly crawler and public map for [Davao Light service advisories](https://www.davaolight.com/customer-services/service-advisory). Advisories are free-form Wix posts; the hard part is parsing that prose into windows, areas, and map points.
 
-First, run the development server:
+This project is unofficial and is not affiliated with Davao Light and Power Co., Inc. Advisory titles, body text, and source pages belong to Davao Light. This repo only indexes public posts. Map tiles and geocoding follow [OpenStreetMap](https://www.openstreetmap.org/copyright) / Nominatim terms.
+
+Frontend contributions (UI, layout, map styling, copy) are welcome. Changes to the scraper, parser, schema, geocoding, or cron should be discussed in an issue first.
+
+Reference UI: [vecoadv.prannsss.dev](https://vecoadv.prannsss.dev/). Project rules live in `.cursor/rules/` and `docs/ROADMAP.md`.
+
+## Stack
+
+- Next.js + TypeScript + Tailwind + shadcn/ui
+- Python scraper (`httpx`, BeautifulSoup, dateutil)
+- Supabase Postgres
+- Vercel (frontend) + GitHub Actions cron (hourly scrape)
+- OpenStreetMap / Nominatim
+
+Without Supabase env vars the UI renders checked-in demo advisories so the layout is usable locally.
+
+## Setup
+
+```bash
+npm install
+cp .env.example .env.local
+```
+
+Apply `supabase/migrations/001_init.sql` in the Supabase SQL editor. Put the publishable key in `NEXT_PUBLIC_*` and the secret key only in server/scraper secrets.
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Scraper
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pip install -r scraper/requirements.txt
+python -m scraper --dry-run --limit 3
+python -m scraper
+python -m pytest
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The listing page already contains `/post/` links in the HTML, so discovery does not need a headless browser. The run is idempotent on `source_url`. If a hour finds no new keyword-matching titles, stored advisories are left untouched.
 
-## Learn More
+Parser failures are logged to `parse_failures`. To override a bad parse, drop a markdown file in `scraper/manuals/` (see `example.md.example`) and rerun `python -m scraper --manuals-only`.
 
-To learn more about Next.js, take a look at the following resources:
+## Hourly schedule
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+GitHub Actions (`.github/workflows/scrape.yml`) runs `python -m scraper` every hour. Add repository secrets `SUPABASE_URL` and `SUPABASE_SECRET_KEY`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Vercel Cron hits `/api/cron/scrape` every hour as a status check of `scrape_runs`. Protect manual calls with `Authorization: Bearer $CRON_SECRET`.
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Code in this repository is licensed under the [MIT License](LICENSE). Copyright © 2026 Josef Llorente.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The MIT license covers the application and scraper source only. It does not apply to Davao Light advisories or OpenStreetMap data.

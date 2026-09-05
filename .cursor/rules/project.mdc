@@ -1,0 +1,58 @@
+---
+description: Project-wide architecture and coding standards
+alwaysApply: true
+---
+
+# Outage Crawler — Project Rules
+
+## Stack
+
+- Next.js
+- TypeScript
+- Tailwind CSS
+- Supabase PostgreSQL
+- Vercel
+- Hourly scraper
+
+## General
+
+- Use TypeScript.
+- Follow existing patterns before introducing new ones.
+- Do not create duplicate components or utilities.
+- Prefer simple solutions over unnecessary abstractions.
+- Do not modify unrelated files.
+- Preserve existing functionality when making changes.
+
+## UI Consistency
+
+- Reuse existing components.
+- Follow DESIGN.md.
+- Do not introduce new colors, typography, spacing systems, or components without checking existing patterns.
+- Maintain responsive behavior.
+- Keep the interface clean and information-focused.
+
+## Database
+
+- Supabase is the source of truth.
+- Every outage must have a source URL.
+- Prevent duplicate advisories.
+- Use proper foreign keys.
+- Never expose service-role credentials to the client.
+
+## Scraper
+
+- Scraper runs once per hour.
+- Scraping must be idempotent.
+- Never delete existing outage records merely because an advisory is temporarily unavailable.
+- Store the original source URL.
+- Log parsing failures.
+- Parser changes must not break previously parsed formats.
+
+## Before coding
+
+1. Inspect existing implementation.
+2. Identify reusable components/functions.
+3. Check relevant documentation.
+4. Make the smallest appropriate change.
+5. Run lint/type checks.
+6. Test the affected functionality.

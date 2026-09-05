@@ -1,0 +1,72 @@
+---
+description: UI and visual consistency rules
+globs:
+  - "src/app/**"
+  - "src/components/**"
+  - "src/pages/**"
+alwaysApply: false
+---
+
+# UI System
+
+## Component Library
+
+- Use shadcn/ui components whenever applicable.
+- Reuse existing project components before creating new ones.
+- Do not install another UI component library.
+- Do not recreate components that already exist.
+
+## Visual Consistency
+
+- Follow the existing design system.
+- Reuse existing spacing, typography, borders, radius, shadows, and sizing.
+- Do not introduce arbitrary values when an existing design token can be used.
+- Keep visual hierarchy consistent across pages.
+
+## Layout
+
+- Use responsive layouts.
+- Design mobile-first.
+- Maintain consistent page padding and content widths.
+- Avoid unnecessary nested containers.
+
+## Colors
+
+- Use semantic theme variables.
+- Do not hardcode colors unless explicitly required.
+- Status colors must have consistent meaning:
+  - outage
+  - upcoming
+  - active
+  - resolved
+
+## Typography
+
+- Use the project's established font.
+- Reuse existing text styles.
+- Avoid excessive font-weight variation.
+
+## Components
+
+Before creating a component:
+
+1. Search the existing components.
+2. Check shadcn/ui.
+3. Reuse or extend an existing component when possible.
+4. Only create a new component when necessary.
+
+## UX
+
+- Loading states must exist for asynchronous content.
+- Empty states must be intentional.
+- Errors must be understandable to users.
+- Interactive elements must have visible states.
+- Maintain keyboard accessibility.
+
+## Do Not
+
+- Introduce random gradients.
+- Add unnecessary animations.
+- Add excessive rounded cards.
+- Use inconsistent button styles.
+- Create one-off UI patterns without justification.
