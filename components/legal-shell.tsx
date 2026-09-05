@@ -16,9 +16,16 @@ export function LegalShell({
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-4 py-3 md:px-6">
           <Link
             href="/"
-            className="text-sm font-semibold tracking-tight hover:text-foreground"
+            className="inline-flex items-center gap-2 text-sm font-semibold tracking-tight hover:text-foreground"
           >
-            Davao Light Outages
+            <img
+              src="/dvo_scraper.png"
+              alt=""
+              width={24}
+              height={24}
+              className="size-6 rounded-full object-cover"
+            />
+            LightsOutinDVO
           </Link>
           <Link href="/" className="text-xs text-muted-foreground hover:text-foreground">
             Back to map

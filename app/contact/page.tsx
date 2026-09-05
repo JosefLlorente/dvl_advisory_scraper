@@ -4,7 +4,7 @@ import { LegalShell } from "@/components/legal-shell";
 import { MAINTAINER_NAME, SOCIALS } from "@/lib/socials";
 
 export const metadata: Metadata = {
-  title: "Contact · Davao Light Outages",
+  title: "Contact · LightsOutinDVO",
 };
 
 export default function ContactPage() {

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { LegalShell } from "@/components/legal-shell";
 
 export const metadata: Metadata = {
-  title: "Terms · Davao Light Outages",
+  title: "Terms · LightsOutinDVO",
 };
 
 export default function TermsPage() {

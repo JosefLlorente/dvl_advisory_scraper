@@ -54,15 +54,15 @@ function AdvisoryCard({
     <div
       id={`advisory-${advisory.id}`}
       className={cn(
-        "w-full rounded-lg border border-border bg-card text-left",
-        selected && "border-foreground/20 bg-muted/80",
+        "w-full overflow-hidden rounded-lg border border-border bg-card text-left transition-[border-color,box-shadow,background-color] duration-300",
+        selected && "border-foreground/20 bg-muted/80 shadow-sm",
       )}
     >
       <button
         type="button"
         aria-expanded={selected}
         onClick={() => onSelect(advisory.id)}
-        className="w-full px-3 py-3 text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="w-full px-3 py-3 text-left transition-colors duration-200 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {selected ? null : (
           <div className="mb-2">
@@ -78,9 +78,16 @@ function AdvisoryCard({
               : "Schedule unavailable"}
         </p>
       </button>
-      {selected ? (
-        <AdvisoryDetail advisory={advisory} className="px-3 pb-3" />
-      ) : null}
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows] duration-300 ease-out",
+          selected ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+        )}
+      >
+        <div className="overflow-hidden">
+          <AdvisoryDetail advisory={advisory} className="px-3 pb-3" />
+        </div>
+      </div>
     </div>
   );
 }

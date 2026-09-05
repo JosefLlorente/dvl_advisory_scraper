@@ -36,6 +36,12 @@ yarn-error.log*
 agents.md
 claude.md
 
+# cursor
+.cursor/
+
+#docs
+docs/
+
 # python
 __pycache__/
 *.py[cod]

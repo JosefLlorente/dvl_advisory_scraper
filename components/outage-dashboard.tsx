@@ -46,64 +46,64 @@ export function OutageDashboard({ data }: { data: DashboardData }) {
   }
 
   return (
-    <div className="flex min-h-full flex-1 flex-col">
-      <SiteHeader lastUpdated={data.lastUpdated} source={data.source} />
+    <div className="relative h-dvh w-full overflow-hidden">
+      <div className="absolute inset-0">
+        <OutageMap
+          advisories={data.advisories}
+          selectedId={selectedId}
+          onSelect={handleSelect}
+        />
+      </div>
+
       <div
         className={cn(
-          "grid min-h-0 flex-1",
-          sidebarOpen ? "lg:grid-cols-[1fr_28rem]" : "lg:grid-cols-1",
+          "absolute top-3 right-3 z-[1200] flex gap-2 transition-all duration-300 ease-out",
+          sidebarOpen
+            ? "pointer-events-none translate-y-1 opacity-0"
+            : "translate-y-0 opacity-100",
         )}
       >
-        <section
-          className={cn(
-            "relative overflow-hidden border-b border-border lg:border-b-0",
-            sidebarOpen
-              ? "h-[45vh] min-h-[280px] lg:h-auto lg:border-r"
-              : "h-[calc(100dvh-4.5rem)] min-h-[280px] lg:h-auto",
-          )}
+        <RefreshButton className="bg-card/90 shadow-sm backdrop-blur-md" />
+        <Button
+          variant="outline"
+          size="sm"
+          className="bg-card/90 shadow-sm backdrop-blur-md"
+          onClick={() => setSidebarOpen(true)}
         >
-          <OutageMap
-            advisories={data.advisories}
-            selectedId={selectedId}
-            onSelect={handleSelect}
-          />
-          {sidebarOpen ? null : (
-            <div className="absolute top-3 right-3 z-[1100] flex gap-2">
-              <RefreshButton className="bg-background" />
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-background"
-                onClick={() => setSidebarOpen(true)}
-              >
-                <PanelRightOpen />
-                Show list
-              </Button>
-            </div>
-          )}
-        </section>
-        {sidebarOpen ? (
-          <section className="flex min-h-0 flex-col bg-background">
-            <div className="flex justify-end gap-2 px-4 pt-3">
-              <RefreshButton />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <PanelRightClose />
-                Hide list
-              </Button>
-            </div>
-            <OutageList
-              advisories={data.advisories}
-              selectedId={selectedId}
-              onSelect={handleSelect}
-            />
-          </section>
-        ) : null}
+          <PanelRightOpen />
+          Show list
+        </Button>
       </div>
-      <SiteFooter />
+
+      <aside
+        className={cn(
+          "absolute top-3 right-3 bottom-3 z-[1100] flex w-[min(28rem,calc(100%-1.5rem))] flex-col overflow-hidden rounded-xl border border-border bg-card/90 shadow-lg backdrop-blur-md transition-all duration-300 ease-out",
+          sidebarOpen
+            ? "translate-x-0 opacity-100"
+            : "pointer-events-none translate-x-[110%] opacity-0",
+        )}
+      >
+        <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-3">
+          <SiteHeader lastUpdated={data.lastUpdated} source={data.source} />
+          <div className="flex shrink-0 gap-2">
+            <RefreshButton />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <PanelRightClose />
+              Hide list
+            </Button>
+          </div>
+        </div>
+        <OutageList
+          advisories={data.advisories}
+          selectedId={selectedId}
+          onSelect={handleSelect}
+        />
+        <SiteFooter compact />
+      </aside>
     </div>
   );
 }

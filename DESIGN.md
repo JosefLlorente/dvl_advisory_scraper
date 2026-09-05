@@ -63,10 +63,10 @@ Build on shadcn/ui: `Button`, `Badge`, `Card`, `Tabs`, `Sheet`, `Skeleton`. Reus
 
 ## Layout
 
-1. Header: title, live/last-updated, refresh.
-2. Map: OSM tiles, markers colored by computed status.
+1. Full-bleed Mindanao map.
+2. Floating sidebar: title, live/last-updated, refresh, hide/show, list, legal/socials.
 3. List: All / Upcoming / Active / Past tabs with counts.
-4. Detail: sheet with windows, areas, reason, type, source link.
+4. Detail: expand on the card with windows, areas, reason, type, source link.
 
 ## States
 

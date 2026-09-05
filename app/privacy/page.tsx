@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { LegalShell } from "@/components/legal-shell";
 
 export const metadata: Metadata = {
-  title: "Privacy policy · Davao Light Outages",
+  title: "Privacy policy · LightsOutinDVO",
 };
 
 export default function PrivacyPage() {

@@ -1,4 +1,4 @@
-# Davao Light Outages
+# LightsOutinDVO
 
 Hourly crawler and public map for [Davao Light service advisories](https://www.davaolight.com/customer-services/service-advisory). Advisories are free-form Wix posts; the hard part is parsing that prose into windows, areas, and map points.
 

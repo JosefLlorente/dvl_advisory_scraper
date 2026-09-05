@@ -62,9 +62,28 @@ body {
   background: var(--muted);
 }
 
+.leaflet-control-zoom {
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 10%);
+}
+
+.leaflet-bar a {
+  background: var(--card) !important;
+  color: var(--foreground) !important;
+  border-bottom-color: var(--border) !important;
+}
+
+.leaflet-control-attribution {
+  background: color-mix(in oklch, var(--card) 88%, transparent) !important;
+  color: var(--muted-foreground);
+}
+
 .outage-marker {
   background: transparent;
   border: 0;
+  cursor: pointer;
 }
 
 .outage-marker-dot {
@@ -100,11 +119,11 @@ body {
   color: var(--card-foreground);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 10%);
   padding: 8px 10px;
   white-space: normal;
 }
 
 .leaflet-tooltip.outage-preview::before {
-  border-top-color: var(--card);
+  display: none;
 }

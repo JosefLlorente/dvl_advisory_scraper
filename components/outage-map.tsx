@@ -1,24 +1,29 @@
 "use client";
 
-import type { LatLngExpression } from "leaflet";
 import L from "leaflet";
 import { useEffect, useMemo, useState } from "react";
 import {
   Circle,
   MapContainer,
   Marker,
-  TileLayer,
   Tooltip,
   useMap,
+  ZoomControl,
 } from "react-leaflet";
 
 import { FALLBACK_RADIUS_M } from "@/lib/boundaries";
 import { formatAreaName } from "@/lib/format";
+import {
+  addMindanaoTiles,
+  MINDANAO_BOUNDS,
+  MINDANAO_CENTER,
+  MINDANAO_DEFAULT_ZOOM,
+  MINDANAO_MAX_ZOOM,
+  MINDANAO_MIN_ZOOM,
+} from "@/lib/mindanao-map";
 import type { Advisory, AdvisoryStatus } from "@/lib/types";
 
 import "leaflet/dist/leaflet.css";
-
-const DAVAO_CENTER: LatLngExpression = [7.0731, 125.6128];
 
 const MAP_COLOR = {
   upcoming: "var(--map-upcoming)",
@@ -91,14 +96,27 @@ function useZoomIconSize() {
   return size;
 }
 
-function CityView({ selected }: { selected: boolean }) {
+function MindanaoView({ selected }: { selected: boolean }) {
   const map = useMap();
 
   useEffect(() => {
     if (!selected) {
-      map.setView(DAVAO_CENTER, 11);
+      map.setView(MINDANAO_CENTER, MINDANAO_DEFAULT_ZOOM);
     }
   }, [map, selected]);
+
+  return null;
+}
+
+function CachedTiles() {
+  const map = useMap();
+
+  useEffect(() => {
+    const layer = addMindanaoTiles(map);
+    return () => {
+      layer.remove();
+    };
+  }, [map]);
 
   return null;
 }
@@ -130,21 +148,26 @@ function AreaCircles({
           center={[area.lat, area.lng]}
           radius={FALLBACK_RADIUS_M}
           pathOptions={path}
-        >
-          <Tooltip className="outage-preview" sticky>
-            <p className="max-w-64 text-xs font-medium">
-              {formatAreaName(area.label)}
-            </p>
-          </Tooltip>
-        </Circle>
+          interactive={false}
+        />
       ))}
       {areas.map((area) => (
         <Marker
           key={`${area.id}-icon`}
           position={[area.lat, area.lng]}
           icon={icon}
-          interactive={false}
-        />
+        >
+          <Tooltip
+            className="outage-preview"
+            direction="top"
+            offset={[0, -Math.round(size / 2) - 4]}
+            opacity={1}
+          >
+            <p className="max-w-64 text-xs font-medium">
+              {formatAreaName(area.label)}
+            </p>
+          </Tooltip>
+        </Marker>
       ))}
     </>
   );
@@ -182,16 +205,19 @@ export default function OutageMap({
   return (
     <div className="relative h-full w-full">
       <MapContainer
-        center={DAVAO_CENTER}
-        zoom={11}
+        center={MINDANAO_CENTER}
+        zoom={MINDANAO_DEFAULT_ZOOM}
+        minZoom={MINDANAO_MIN_ZOOM}
+        maxZoom={MINDANAO_MAX_ZOOM}
+        maxBounds={MINDANAO_BOUNDS}
+        maxBoundsViscosity={1}
+        zoomControl={false}
         className="h-full w-full"
         scrollWheelZoom
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <CityView selected={Boolean(selected)} />
+        <ZoomControl position="topleft" />
+        <CachedTiles />
+        <MindanaoView selected={Boolean(selected)} />
         {selected && selectedStatus && selectedCircles.length > 0 ? (
           <AreaCircles areas={selectedCircles} status={selectedStatus} />
         ) : null}

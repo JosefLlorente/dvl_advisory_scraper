@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { SOCIALS } from "@/lib/socials";
+import { cn } from "@/lib/utils";
 
 const LINKS = [
   { href: "/privacy", label: "Privacy policy" },
@@ -8,10 +9,20 @@ const LINKS = [
   { href: "/contact", label: "Contact" },
 ] as const;
 
-export function SiteFooter() {
+export function SiteFooter({ compact = false }: { compact?: boolean }) {
   return (
-    <footer className="border-t border-border px-4 py-3 md:px-6">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+    <footer
+      className={cn(
+        "border-t border-border",
+        compact ? "px-4 py-3" : "px-4 py-3 md:px-6",
+      )}
+    >
+      <div
+        className={cn(
+          "flex flex-wrap gap-x-4 gap-y-2",
+          compact ? "flex-col" : "items-center justify-between",
+        )}
+      >
         <nav
           aria-label="Legal"
           className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"
