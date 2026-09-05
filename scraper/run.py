@@ -23,11 +23,23 @@ def _geocode_parsed(
 ) -> tuple[dict, int]:
     failures = 0
     geocoded = []
+    last_located: dict | None = None
     for area in parsed["area_rows"]:
         result = geocode_area(http_client, area["raw_text"], cache, enabled)
         if result["geocode_confidence"] in {"failed", "pending"}:
             failures += 1
-        geocoded.append({**area, **result})
+            if result.get("lat") is None and last_located:
+                result = {
+                    **result,
+                    "lat": last_located["lat"],
+                    "lng": last_located["lng"],
+                    "normalized_name": result.get("normalized_name")
+                    or last_located.get("normalized_name"),
+                }
+        row = {**area, **result}
+        geocoded.append(row)
+        if row.get("lat") is not None and row.get("lng") is not None:
+            last_located = row
     parsed["geocoded_areas"] = geocoded
     return parsed, failures
 
@@ -186,8 +198,17 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Scrape Davao Light service advisories")
     parser.add_argument("--dry-run", action="store_true", help="Parse and print JSON, do not write")
     parser.add_argument("--manuals-only", action="store_true")
+    parser.add_argument(
+        "--regeocode",
+        action="store_true",
+        help="Refresh stored area coordinates without scraping",
+    )
     parser.add_argument("--limit", type=int, default=None)
     args = parser.parse_args(argv)
+    if args.regeocode:
+        from .regeocode import main as regeocode_main
+
+        return regeocode_main()
     write = not args.dry_run
     if write and not SUPABASE_SERVICE_ROLE_KEY:
         print("No SUPABASE_SERVICE_ROLE_KEY; running as dry-run.")

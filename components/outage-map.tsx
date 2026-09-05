@@ -1,7 +1,7 @@
 "use client";
 
 import L from "leaflet";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Circle,
   MapContainer,
@@ -11,7 +11,7 @@ import {
   ZoomControl,
 } from "react-leaflet";
 
-import { FALLBACK_RADIUS_M } from "@/lib/boundaries";
+import { fetchAreaBoundary, resolveMapAreas } from "@/lib/boundaries";
 import { formatAreaName } from "@/lib/format";
 import {
   addMindanaoTiles,
@@ -21,7 +21,7 @@ import {
   MINDANAO_MAX_ZOOM,
   MINDANAO_MIN_ZOOM,
 } from "@/lib/mindanao-map";
-import type { Advisory, AdvisoryStatus } from "@/lib/types";
+import type { Advisory, AdvisoryStatus, AffectedArea } from "@/lib/types";
 
 import "leaflet/dist/leaflet.css";
 
@@ -96,16 +96,85 @@ function useZoomIconSize() {
   return size;
 }
 
-function MindanaoView({ selected }: { selected: boolean }) {
+function MindanaoView({
+  selected,
+  areas,
+}: {
+  selected: boolean;
+  areas: { lat: number; lng: number }[];
+}) {
   const map = useMap();
 
   useEffect(() => {
-    if (!selected) {
+    if (!selected || areas.length === 0) {
       map.setView(MINDANAO_CENTER, MINDANAO_DEFAULT_ZOOM);
+      return;
     }
-  }, [map, selected]);
+    if (areas.length === 1) {
+      map.setView([areas[0].lat, areas[0].lng], 14);
+      return;
+    }
+    const bounds = L.latLngBounds(areas.map((area) => [area.lat, area.lng]));
+    map.fitBounds(bounds.pad(0.35), { maxZoom: 14, animate: false });
+  }, [map, selected, areas]);
 
   return null;
+}
+
+function useResolvedAreas(areas: AffectedArea[], selectedId: string | null) {
+  const [upgrades, setUpgrades] = useState<
+    Record<string, { lat: number; lng: number }>
+  >({});
+  const areaKey = areas.map((area) => area.id).join("|");
+  const areasRef = useRef(areas);
+  areasRef.current = areas;
+
+  useEffect(() => {
+    setUpgrades({});
+    if (!selectedId) {
+      return;
+    }
+    const missing = areasRef.current.filter(
+      (area) => area.lat == null || area.lng == null,
+    );
+    if (missing.length === 0) {
+      return;
+    }
+    const controller = new AbortController();
+    let cancelled = false;
+    void (async () => {
+      for (const area of missing) {
+        if (cancelled) {
+          return;
+        }
+        try {
+          const result = await fetchAreaBoundary(area, controller.signal);
+          if (result.lat != null && result.lng != null && !cancelled) {
+            setUpgrades((current) => ({
+              ...current,
+              [area.id]: { lat: result.lat as number, lng: result.lng as number },
+            }));
+          }
+        } catch {
+          // Neighbor fallback still renders the area.
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [selectedId, areaKey]);
+
+  return useMemo(() => {
+    const merged = areas.map((area) => {
+      const upgrade = upgrades[area.id];
+      return upgrade
+        ? { ...area, lat: upgrade.lat, lng: upgrade.lng }
+        : area;
+    });
+    return resolveMapAreas(merged);
+  }, [areas, upgrades]);
 }
 
 function CachedTiles() {
@@ -125,7 +194,7 @@ function AreaCircles({
   areas,
   status,
 }: {
-  areas: { id: string; label: string; lat: number; lng: number }[];
+  areas: { id: string; label: string; lat: number; lng: number; radius: number }[];
   status: AdvisoryStatus;
 }) {
   const size = useZoomIconSize();
@@ -146,7 +215,7 @@ function AreaCircles({
         <Circle
           key={`${area.id}-circle`}
           center={[area.lat, area.lng]}
-          radius={FALLBACK_RADIUS_M}
+          radius={area.radius}
           pathOptions={path}
           interactive={false}
         />
@@ -173,6 +242,8 @@ function AreaCircles({
   );
 }
 
+const EMPTY_AREAS: AffectedArea[] = [];
+
 export default function OutageMap({
   advisories,
   selectedId,
@@ -187,19 +258,9 @@ export default function OutageMap({
   );
   const selectedStatus = selected ? visualStatus(selected) : null;
 
-  const selectedCircles = useMemo(
-    () =>
-      selected
-        ? selected.areas
-            .filter((area) => area.lat != null && area.lng != null)
-            .map((area) => ({
-              id: area.id,
-              label: area.rawText,
-              lat: area.lat as number,
-              lng: area.lng as number,
-            }))
-        : [],
-    [selected],
+  const selectedCircles = useResolvedAreas(
+    selected?.areas ?? EMPTY_AREAS,
+    selectedId,
   );
 
   return (
@@ -217,7 +278,10 @@ export default function OutageMap({
       >
         <ZoomControl position="topleft" />
         <CachedTiles />
-        <MindanaoView selected={Boolean(selected)} />
+        <MindanaoView
+          selected={Boolean(selected)}
+          areas={selectedCircles}
+        />
         {selected && selectedStatus && selectedCircles.length > 0 ? (
           <AreaCircles areas={selectedCircles} status={selectedStatus} />
         ) : null}

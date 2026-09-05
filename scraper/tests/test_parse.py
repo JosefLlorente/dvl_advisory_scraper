@@ -1,7 +1,7 @@
 import re
 from pathlib import Path
 
-from scraper.parse import parse_advisory, should_replace
+from scraper.parse import extract_area_rows, extract_areas, parse_advisory, should_replace
 
 FIXTURES = Path(__file__).resolve().parent.parent / "fixtures"
 
@@ -43,6 +43,14 @@ def test_multi_date_and_between_window():
     assert any("J. P. Laurel" in area for area in parsed["areas"])
     assert any("Bajada" in area for area in parsed["areas"])
     assert any("SPMC" in area or "DOH" in area for area in parsed["areas"])
+    assert any(area == "Arroyo Street" for area in parsed["areas"])
+    assert any("Damosa to Jetti Gas" in area for area in parsed["areas"])
+    assert any(area.endswith("Ornels Sea Foods") for area in parsed["areas"])
+    assert not any(area.lower().endswith(" and") for area in parsed["areas"])
+    assert not any("crossing" in area.lower() for area in parsed["areas"])
+    assert not any("up to" in area.lower() for area in parsed["areas"])
+    assert not any("nearby" in area.lower() for area in parsed["areas"])
+    assert not any("," in area for area in parsed["areas"])
     assert not any(re.search(r"portion of J$", area) for area in parsed["areas"])
 
 
@@ -116,3 +124,58 @@ def test_should_not_overwrite_higher_confidence():
     assert should_replace("failed", "high") is True
     assert should_replace("manual", "high") is False
     assert should_replace("high", "high") is True
+
+
+def test_comma_and_up_to_split_jp_laurel_span():
+    areas = extract_areas(
+        "Further, another 45-minute normalization activity will be conducted "
+        "at any time between 8:00 a.m. and 9:00 a.m. on Sunday, September 6, "
+        "affecting a portion of J. P. Laurel Avenue in Lanang, crossing Arroyo "
+        "Street up to Jetti Gas opposite SM Lanang, and nearby areas."
+    )
+    assert any("J. P. Laurel Avenue in Lanang" in area for area in areas)
+    assert "Arroyo Street" in areas
+    assert "Jetti Gas opposite SM Lanang" in areas
+    assert not any("crossing" in area.lower() for area in areas)
+    assert not any("nearby" in area.lower() for area in areas)
+    assert not any("," in area for area in areas)
+
+
+def test_nearby_areas_drops_trailing_text_without_period():
+    areas = extract_areas(
+        "Specifically affected are customers from Abreeza, and nearby areas "
+        "including a stray park without a period"
+    )
+    assert areas == ["Abreeza"]
+
+
+def test_nearby_areas_allows_next_sentence_after_period():
+    areas = extract_areas(
+        "Specifically affected are customers from Abreeza, and nearby areas. "
+        "Also affected are those from Bajada."
+    )
+    assert "Abreeza" in areas
+    assert "Bajada" in areas
+
+
+def test_crossing_kept_only_for_matina_crossing():
+    areas = extract_areas(
+        "Specifically affected are customers from Matina Crossing, crossing "
+        "Arroyo Street, and nearby areas."
+    )
+    assert "Matina Crossing" in areas
+    assert "Arroyo Street" in areas
+    assert not any(area.lower() == "crossing arroyo street" for area in areas)
+
+
+def test_including_marks_follow_on_areas():
+    rows = extract_area_rows(
+        "Specifically affected are customers from Purok 24 Samulco Village "
+        "along Catalunan Pequeno Road going to Cawa Cawa, including Hedcor "
+        "Talomo Plant 3, Villa Constancia Subdivision, and nearby areas."
+    )
+    by_name = {row["raw_text"]: row["included"] for row in rows}
+    assert any("Samulco" in name for name in by_name)
+    assert by_name["Hedcor Talomo Plant 3"] is True
+    assert by_name["Villa Constancia Subdivision"] is True
+    assert not any(included for name, included in by_name.items() if "Samulco" in name)

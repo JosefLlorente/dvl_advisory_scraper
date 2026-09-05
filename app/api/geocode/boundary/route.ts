@@ -1,144 +1,135 @@
 import { NextRequest } from "next/server";
 
-import { hasOsmPolygon } from "@/lib/boundaries";
-
 export const dynamic = "force-dynamic";
 
-const USER_AGENT =
-  "DavaoLightOutageCrawler/0.1 (+https://github.com/local/dvl_scraper; civic outage indexer)";
-
-const CITY_TYPES = new Set([
-  "city",
-  "municipality",
-  "province",
-  "state",
-  "region",
-  "country",
-  "county",
-]);
-
-type NominatimHit = {
-  lat: string;
-  lon: string;
-  display_name?: string;
-  addresstype?: string;
-  class?: string;
-  type?: string;
-  boundingbox?: [string, string, string, string];
-  geojson?: { type: string; coordinates: unknown };
+type GoogleGeocodeHit = {
+  formatted_address?: string;
+  geometry?: {
+    location?: { lat: number; lng: number };
+    location_type?: string;
+  };
+  address_components?: { long_name?: string; types?: string[] }[];
 };
 
 type CacheEntry = {
   label: string;
-  geojson: { type: string; coordinates: unknown } | null;
+  geojson: null;
   lat: number | null;
   lng: number | null;
 };
 
 const cache = new Map<string, CacheEntry>();
-let lastNominatimAt = 0;
 
 const JP_LAUREL = /j\.?\s*p\.?\s*laurel/i;
 const JP_LAUREL_QUERY = "J.P. Laurel Avenue";
 const JP_LAUREL_POINT = { lat: 7.0942, lng: 125.6178 };
+const SEARCH_CITIES = ["Davao City", "Panabo City"] as const;
 
 function simplify(query: string): string {
   if (JP_LAUREL.test(query)) {
     return JP_LAUREL_QUERY;
   }
-  return query
+  const withoutCrossing = query.replace(/\bMatina Crossing\b/gi, "MATINA_CROSSING");
+  return withoutCrossing
     .replace(/\balong\b.*$/i, "")
     .replace(/\bgoing to\b.*$/i, "")
-    .replace(/\bnearby areas\b/i, "")
+    .replace(/\bfrom\b.*?\bto\b/i, "")
+    .replace(/\bto\b.*$/i, "")
+    .replace(/\bnearby areas\b.*$/i, "")
+    .replace(/\bcrossing\b/gi, " ")
+    .replace(/MATINA_CROSSING/g, "Matina Crossing")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function bboxSpan(bbox?: [string, string, string, string]) {
-  if (!bbox) return Number.POSITIVE_INFINITY;
-  const south = Number(bbox[0]);
-  const north = Number(bbox[1]);
-  const west = Number(bbox[2]);
-  const east = Number(bbox[3]);
-  return Math.max(north - south, east - west);
+function inViewbox(lat: number, lon: number) {
+  return lat >= 6.88 && lat <= 7.42 && lon >= 125.3 && lon <= 125.85;
 }
 
-function isLocalHit(hit: NominatimHit): boolean {
-  if (hit.addresstype && CITY_TYPES.has(hit.addresstype)) {
+function inAllowedCity(hit: GoogleGeocodeHit, lat: number, lon: number): boolean {
+  if (!inViewbox(lat, lon)) {
     return false;
   }
-  if (hit.type && CITY_TYPES.has(hit.type)) {
-    return false;
-  }
-  return bboxSpan(hit.boundingbox) <= 0.06;
+  const city =
+    hit.address_components?.find((component) =>
+      component.types?.includes("locality"),
+    )?.long_name?.toLowerCase() ?? "";
+  const display = hit.formatted_address?.toLowerCase() ?? "";
+  const blob = `${city} ${display}`;
+  return (
+    /davao city|panabo city/.test(blob) ||
+    city === "davao" ||
+    city === "panabo" ||
+    /\bpanabo\b|\bsamal\b|\btalicud\b|\bigacos\b/.test(blob) ||
+    /davao del sur|davao del norte|davao region/.test(display)
+  );
 }
 
-function geometryFromHit(hit: NominatimHit) {
-  if (!isLocalHit(hit)) {
+async function googleGeocode(query: string): Promise<CacheEntry | null> {
+  const key = process.env.GOOGLE_MAPS_API_KEY;
+  if (!key) {
     return null;
   }
-  if (hasOsmPolygon(hit.geojson ?? null)) {
-    return hit.geojson ?? null;
-  }
-  return null;
-}
-
-async function throttle() {
-  const wait = 1100 - (Date.now() - lastNominatimAt);
-  if (wait > 0) {
-    await new Promise((resolve) => setTimeout(resolve, wait));
-  }
-  lastNominatimAt = Date.now();
-}
-
-async function nominatimSearch(query: string): Promise<CacheEntry | null> {
-  const key = query.toLowerCase();
-  const cached = cache.get(key);
+  const cacheKey = query.toLowerCase();
+  const cached = cache.get(cacheKey);
   if (cached) {
     return cached;
   }
 
-  await throttle();
-  const url = new URL("https://nominatim.openstreetmap.org/search");
-  url.searchParams.set("q", query);
-  url.searchParams.set("format", "json");
-  url.searchParams.set("limit", "5");
-  url.searchParams.set("countrycodes", "ph");
-  url.searchParams.set("polygon_geojson", "1");
-  url.searchParams.set("addressdetails", "1");
-  url.searchParams.set("viewbox", "125.35,7.28,125.78,6.95");
+  const addresses = [
+    ...SEARCH_CITIES.map((city) => `${query}, ${city}, Philippines`),
+    `${query}, Philippines`,
+  ];
 
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent": USER_AGENT,
-      Referer: "https://www.davaolight.com",
-    },
-  });
-  if (!response.ok) {
-    return null;
-  }
+  for (const address of addresses) {
+    const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
+    url.searchParams.set("address", address);
+    url.searchParams.set("key", key);
+    url.searchParams.set("region", "ph");
+    url.searchParams.set("bounds", "6.88,125.30|7.42,125.85");
+    url.searchParams.set("components", "country:PH");
 
-  const hits = (await response.json()) as NominatimHit[];
-  const hit = hits.find(isLocalHit);
-  if (!hit) {
-    const empty: CacheEntry = {
-      label: query,
-      geojson: null,
-      lat: null,
-      lng: null,
+    const response = await fetch(url);
+    if (!response.ok) {
+      continue;
+    }
+    const payload = (await response.json()) as {
+      status?: string;
+      results?: GoogleGeocodeHit[];
     };
-    cache.set(key, empty);
-    return empty;
+    if (payload.status && !["OK", "ZERO_RESULTS"].includes(payload.status)) {
+      break;
+    }
+    const hit = (payload.results ?? []).find((candidate) => {
+      const lat = candidate.geometry?.location?.lat;
+      const lng = candidate.geometry?.location?.lng;
+      return (
+        lat != null &&
+        lng != null &&
+        inAllowedCity(candidate, lat, lng)
+      );
+    });
+    if (!hit?.geometry?.location) {
+      continue;
+    }
+    const entry: CacheEntry = {
+      label: hit.formatted_address ?? query,
+      geojson: null,
+      lat: hit.geometry.location.lat,
+      lng: hit.geometry.location.lng,
+    };
+    cache.set(cacheKey, entry);
+    return entry;
   }
 
-  const entry: CacheEntry = {
-    label: hit.display_name ?? query,
-    geojson: geometryFromHit(hit),
-    lat: Number(hit.lat),
-    lng: Number(hit.lon),
+  const empty: CacheEntry = {
+    label: query,
+    geojson: null,
+    lat: null,
+    lng: null,
   };
-  cache.set(key, entry);
-  return entry;
+  cache.set(cacheKey, empty);
+  return empty;
 }
 
 export async function GET(request: NextRequest) {
@@ -155,34 +146,25 @@ export async function GET(request: NextRequest) {
   const fallbackLng = lng ? Number(lng) : null;
   const simplified = simplify(q) || q;
 
-  function payload(
-    geojson: { type: string; coordinates: unknown } | null,
-    nextLat: number | null,
-    nextLng: number | null,
-  ) {
-    const resolvedLat = nextLat ?? fallbackLat;
-    const resolvedLng = nextLng ?? fallbackLng;
+  function payload(nextLat: number | null, nextLng: number | null) {
     return {
       id,
       label: q,
-      geojson: hasOsmPolygon(geojson) ? geojson : null,
-      lat: resolvedLat,
-      lng: resolvedLng,
+      geojson: null,
+      lat: nextLat ?? fallbackLat,
+      lng: nextLng ?? fallbackLng,
     };
   }
 
   if (/^davao( city)?$/i.test(simplified)) {
-    return Response.json(payload(null, fallbackLat, fallbackLng));
+    return Response.json(payload(fallbackLat, fallbackLng));
   }
 
   try {
-    const result = await nominatimSearch(
-      `${simplified}, Davao City, Philippines`,
-    );
+    const result = await googleGeocode(simplified);
     if (result) {
       return Response.json(
         payload(
-          result.geojson,
           result.lat
             ?? (simplified === JP_LAUREL_QUERY ? JP_LAUREL_POINT.lat : null),
           result.lng
@@ -196,10 +178,8 @@ export async function GET(request: NextRequest) {
   }
 
   if (simplified === JP_LAUREL_QUERY) {
-    return Response.json(
-      payload(null, JP_LAUREL_POINT.lat, JP_LAUREL_POINT.lng),
-    );
+    return Response.json(payload(JP_LAUREL_POINT.lat, JP_LAUREL_POINT.lng));
   }
 
-  return Response.json(payload(null, fallbackLat, fallbackLng));
+  return Response.json(payload(fallbackLat, fallbackLng));
 }

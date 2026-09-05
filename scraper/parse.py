@@ -59,9 +59,22 @@ AREA_LEADIN = re.compile(
     r"(?:specifically affected are(?: customers)?(?: from| in)?|"
     r"also affected are(?: those)?(?: from| in)?|"
     r"affecting customers(?: from| in)?|"
+    r"affecting a portion of|"
+    r"affecting portions of|"
     r"customers from|customers in)\s+",
     re.IGNORECASE,
 )
+CLAUSE_SPLIT = re.compile(r"\s*;\s*")
+INCLUDING_SPLIT = re.compile(r"\s+including\s+", re.IGNORECASE)
+UP_TO_SPLIT = re.compile(r"\s+up to\s+", re.IGNORECASE)
+NEARBY_AREAS = re.compile(r"\bnearby areas\b", re.IGNORECASE)
+MATINA_CROSSING = re.compile(r"\bMatina Crossing\b", re.IGNORECASE)
+CROSSING_WORD = re.compile(r"\bcrossing\b", re.IGNORECASE)
+LEADING_AREA_JUNK = re.compile(
+    r"^(?:and|those|from|in|to|of)\s+",
+    re.IGNORECASE,
+)
+TRAILING_AREA_JUNK = re.compile(r"\s+(?:and|those)$", re.IGNORECASE)
 
 WORD_HOURS = {
     "one": 1,
@@ -157,33 +170,70 @@ def extract_reason(text: str) -> str | None:
     return _clean(match.group(1)).rstrip(",")
 
 
-def extract_areas(text: str) -> list[str]:
+def _strip_crossing(piece: str) -> str:
+    token = "MATINA_CROSSING"
+    protected = MATINA_CROSSING.sub(token, piece)
+    protected = CROSSING_WORD.sub(" ", protected)
+    protected = protected.replace(token, "Matina Crossing")
+    protected = re.sub(r"\bthe\s+of\b", " ", protected, flags=re.IGNORECASE)
+    return _clean(protected)
+
+
+def _truncate_nearby_areas(clause: str) -> str:
+    match = NEARBY_AREAS.search(clause)
+    if not match:
+        return clause
+    after = clause[match.end() :]
+    if re.match(r"\s*\.", after):
+        return _clean(clause[: match.start()] + re.sub(r"^\s*\.", " ", after))
+    return _clean(clause[: match.start()])
+
+
+def _normalize_area_piece(part: str) -> str:
+    piece = _clean(re.sub(r"^[,.\s]+|[,.\s]+$", "", part))
+    piece = LEADING_AREA_JUNK.sub("", piece)
+    piece = _strip_crossing(piece)
+    piece = LEADING_AREA_JUNK.sub("", piece)
+    piece = TRAILING_AREA_JUNK.sub("", piece)
+    piece = JP_LAUREL.sub("J. P. Laurel", piece)
+    piece = piece.replace(JP_LAUREL_TOKEN, "J. P. Laurel")
+    return _clean(piece)
+
+
+def _is_valid_area(piece: str) -> bool:
+    return 4 <= len(piece) <= 220 and piece.lower() not in {
+        "nearby areas",
+        "this service disruption",
+        "customers",
+    }
+
+
+def extract_area_rows(text: str) -> list[dict[str, Any]]:
     body = APOLOGY_START.split(text, maxsplit=1)[0]
     body = JP_LAUREL.sub(JP_LAUREL_TOKEN, body)
-    fragments: list[str] = []
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
     for match in AREA_LEADIN.finditer(body):
         rest = body[match.end() :]
         cutoff = re.split(r"(?:\.|Davao Light apologizes)", rest, maxsplit=1)[0]
-        chunks = re.split(r";| including |, and nearby areas| and nearby areas", cutoff)
-        for chunk in chunks:
-            keep_whole = bool(
-                JP_LAUREL.search(chunk)
-                or JP_LAUREL_TOKEN in chunk
-                or re.search(r"\bfrom\b.+\bto\b", chunk, re.IGNORECASE)
-            )
-            parts = [chunk] if keep_whole else re.split(r",\s*", chunk)
-            for part in parts:
-                piece = _clean(re.sub(r"^[,.\s]+|[,.\s]+$", "", part))
-                piece = re.sub(r"^(?:and|those|from|in)\s+", "", piece, flags=re.IGNORECASE)
-                piece = JP_LAUREL.sub("J. P. Laurel", piece)
-                piece = piece.replace(JP_LAUREL_TOKEN, "J. P. Laurel")
-                if 4 <= len(piece) <= 220 and piece.lower() not in {
-                    "nearby areas",
-                    "this service disruption",
-                    "customers",
-                }:
-                    fragments.append(piece)
-    return list(dict.fromkeys(fragments))
+        for clause in CLAUSE_SPLIT.split(cutoff):
+            clause = _truncate_nearby_areas(clause)
+            if not clause:
+                continue
+            for index, chunk in enumerate(INCLUDING_SPLIT.split(clause)):
+                included = index > 0
+                for up_to_part in UP_TO_SPLIT.split(chunk):
+                    for part in re.split(r",\s*", up_to_part):
+                        piece = _normalize_area_piece(part)
+                        key = piece.lower()
+                        if _is_valid_area(piece) and key not in seen:
+                            seen.add(key)
+                            rows.append({"raw_text": piece, "included": included})
+    return rows
+
+
+def extract_areas(text: str) -> list[str]:
+    return [row["raw_text"] for row in extract_area_rows(text)]
 
 
 def _windows_from_match(
@@ -379,7 +429,7 @@ def parse_advisory(
 ) -> dict[str, Any]:
     body = APOLOGY_START.split(raw_text, maxsplit=1)[0]
     windows = extract_windows(body, published_at)
-    areas = [{"raw_text": area} for area in extract_areas(body)]
+    areas = extract_area_rows(body)
     cancelled = detect_cancelled(title, body)
 
     if parse_confidence:
