@@ -26,7 +26,7 @@ export function SiteHeader({
         <span className="inline-flex items-center gap-1.5">
           <span
             aria-hidden
-            className="size-1.5 rounded-full bg-status-completed"
+            className="size-1.5 rounded-full bg-accent"
           />
           <span>Live</span>
         </span>

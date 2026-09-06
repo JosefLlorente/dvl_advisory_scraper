@@ -17,6 +17,9 @@ LISTING_URLS = [
 REQUEST_DELAY_SECONDS = float(os.getenv("SCRAPE_DELAY_SECONDS", "1.5"))
 GEOCODE_ENABLED = os.getenv("GEOCODE_ENABLED", "true").lower() != "false"
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+GEMINI_ENABLED = os.getenv("GEMINI_ENABLED", "true").lower() != "false"
 TIMEZONE = "Asia/Manila"
 
 SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL")

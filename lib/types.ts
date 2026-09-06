@@ -38,6 +38,7 @@ export type OutageWindow = {
 export type AffectedArea = {
   id: string;
   advisoryId: string;
+  windowId: string | null;
   rawText: string;
   normalizedName: string | null;
   barangay: string | null;

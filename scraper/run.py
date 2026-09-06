@@ -11,7 +11,7 @@ from .discover import discover_posts
 from .fetch import build_client, fetch_html, parse_post
 from .geocode import geocode_area
 from .manual import parse_manual_file
-from .parse import parse_advisory
+from .gemini_parse import parse_with_gemini_or_fallback
 from . import PARSER_VERSION
 
 
@@ -24,7 +24,12 @@ def _geocode_parsed(
     failures = 0
     geocoded = []
     last_located: dict | None = None
+    last_window = object()
     for area in parsed["area_rows"]:
+        window_index = area.get("window_index")
+        if window_index != last_window:
+            last_located = None
+            last_window = window_index
         result = geocode_area(http_client, area["raw_text"], cache, enabled)
         if result["geocode_confidence"] in {"failed", "pending"}:
             failures += 1
@@ -58,16 +63,14 @@ def run_scrape(write: bool, manuals_only: bool, limit: int | None) -> dict:
     store = None
     db = None
     cache: dict = {}
-    known: set[str] = set()
-    stale: set[str] = set()
+    known: dict = {}
     if write:
         from . import store as store_mod
 
         store = store_mod
         db = store.get_client()
         cache = store.load_geocode_cache(db)
-        known = store.existing_urls(db)
-        stale = store.urls_needing_reparse(db)
+        known = store.existing_listings(db)
         run_id = store.start_run(db)
     else:
         run_id = None
@@ -93,14 +96,16 @@ def run_scrape(write: bool, manuals_only: bool, limit: int | None) -> dict:
             stats["notes"] += "; no keyword-matching titles"
             return stats
 
+        def title_changed(post: dict) -> bool:
+            existing = known.get(post["source_url"])
+            if not existing:
+                return True
+            return (existing.get("title") or "").strip() != (post.get("title") or "").strip()
+
         targets = (
             posts
             if not write
-            else [
-                post
-                for post in posts
-                if post["source_url"] not in known or post["source_url"] in stale
-            ]
+            else [post for post in posts if title_changed(post)]
         )
         if write and not targets and not manuals_only:
             stats["notes"] += "; no new keyword-matching titles"
@@ -110,7 +115,8 @@ def run_scrape(write: bool, manuals_only: bool, limit: int | None) -> dict:
                     fetch_html(http_client, post["source_url"]),
                     post["source_url"],
                 )
-                parsed = parse_advisory(
+                parsed = parse_with_gemini_or_fallback(
+                    http_client,
                     fetched["title"],
                     fetched["raw_text"],
                     fetched["source_url"],
@@ -203,12 +209,21 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Refresh stored area coordinates without scraping",
     )
+    parser.add_argument(
+        "--reparse",
+        action="store_true",
+        help="Reparse stored advisories with Gemini without scraping",
+    )
     parser.add_argument("--limit", type=int, default=None)
     args = parser.parse_args(argv)
     if args.regeocode:
         from .regeocode import main as regeocode_main
 
         return regeocode_main()
+    if args.reparse:
+        from .reparse import main as reparse_main
+
+        return reparse_main()
     write = not args.dry_run
     if write and not SUPABASE_SERVICE_ROLE_KEY:
         print("No SUPABASE_SERVICE_ROLE_KEY; running as dry-run.")

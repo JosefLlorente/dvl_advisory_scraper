@@ -22,6 +22,7 @@ import {
   MINDANAO_MIN_ZOOM,
 } from "@/lib/mindanao-map";
 import type { Advisory, AdvisoryStatus, AffectedArea } from "@/lib/types";
+import { areasForWindow } from "@/lib/windows";
 
 import "leaflet/dist/leaflet.css";
 
@@ -68,11 +69,11 @@ function iconSizePx(zoom: number) {
   return Math.round(Math.min(64, Math.max(28, 28 + (13 - zoom) * 6)));
 }
 
-function statusIcon(status: AdvisoryStatus, size: number) {
+function statusIcon(status: AdvisoryStatus, size: number, dimmed: boolean) {
   const color = mapColor(status);
   return L.divIcon({
     className: "outage-marker",
-    html: `<span class="outage-status-icon" style="width:${size}px;height:${size}px;background:${color}">${ICON_SVG[status]}</span>`,
+    html: `<span class="outage-status-icon" style="width:${size}px;height:${size}px;background:${color};opacity:${dimmed ? 0.28 : 1}">${ICON_SVG[status]}</span>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });
@@ -192,15 +193,24 @@ function CachedTiles() {
 
 function AreaCircles({
   areas,
+  focusedIds,
   status,
 }: {
   areas: { id: string; label: string; lat: number; lng: number; radius: number }[];
+  focusedIds: Set<string>;
   status: AdvisoryStatus;
 }) {
   const size = useZoomIconSize();
   const color = mapColor(status);
-  const icon = statusIcon(status, size);
-  const path = {
+  const dimPath = {
+    color,
+    fillColor: color,
+    weight: 3,
+    opacity: 0.22,
+    fillOpacity: 0.05,
+    dashArray: "8 7",
+  };
+  const focusPath = {
     color,
     fillColor: color,
     weight: 3,
@@ -211,33 +221,41 @@ function AreaCircles({
 
   return (
     <>
-      {areas.map((area) => (
-        <Circle
-          key={`${area.id}-circle`}
-          center={[area.lat, area.lng]}
-          radius={area.radius}
-          pathOptions={path}
-          interactive={false}
-        />
-      ))}
-      {areas.map((area) => (
-        <Marker
-          key={`${area.id}-icon`}
-          position={[area.lat, area.lng]}
-          icon={icon}
-        >
-          <Tooltip
-            className="outage-preview"
-            direction="top"
-            offset={[0, -Math.round(size / 2) - 4]}
-            opacity={1}
+      {areas.map((area) => {
+        const dimmed = focusedIds.size > 0 && !focusedIds.has(area.id);
+        return (
+          <Circle
+            key={`${area.id}-circle`}
+            center={[area.lat, area.lng]}
+            radius={area.radius}
+            pathOptions={dimmed ? dimPath : focusPath}
+            interactive={false}
+          />
+        );
+      })}
+      {areas.map((area) => {
+        const dimmed = focusedIds.size > 0 && !focusedIds.has(area.id);
+        return (
+          <Marker
+            key={`${area.id}-icon`}
+            position={[area.lat, area.lng]}
+            icon={statusIcon(status, size, dimmed)}
+            opacity={dimmed ? 0.35 : 1}
+            zIndexOffset={dimmed ? 0 : 200}
           >
-            <p className="max-w-64 text-xs font-medium">
-              {formatAreaName(area.label)}
-            </p>
-          </Tooltip>
-        </Marker>
-      ))}
+            <Tooltip
+              className="outage-preview"
+              direction="top"
+              offset={[0, -Math.round(size / 2) - 4]}
+              opacity={1}
+            >
+              <p className="max-w-64 text-xs font-medium">
+                {formatAreaName(area.label)}
+              </p>
+            </Tooltip>
+          </Marker>
+        );
+      })}
     </>
   );
 }
@@ -247,9 +265,11 @@ const EMPTY_AREAS: AffectedArea[] = [];
 export default function OutageMap({
   advisories,
   selectedId,
+  selectedWindowId,
 }: {
   advisories: Advisory[];
   selectedId: string | null;
+  selectedWindowId: string | null;
   onSelect: (id: string) => void;
 }) {
   const selected = useMemo(
@@ -257,6 +277,14 @@ export default function OutageMap({
     [advisories, selectedId],
   );
   const selectedStatus = selected ? visualStatus(selected) : null;
+  const focusedAreas = useMemo(
+    () => (selected ? areasForWindow(selected, selectedWindowId) : EMPTY_AREAS),
+    [selected, selectedWindowId],
+  );
+  const focusedIds = useMemo(
+    () => new Set(focusedAreas.map((area) => area.id)),
+    [focusedAreas],
+  );
 
   const selectedCircles = useResolvedAreas(
     selected?.areas ?? EMPTY_AREAS,
@@ -283,7 +311,11 @@ export default function OutageMap({
           areas={selectedCircles}
         />
         {selected && selectedStatus && selectedCircles.length > 0 ? (
-          <AreaCircles areas={selectedCircles} status={selectedStatus} />
+          <AreaCircles
+            areas={selectedCircles}
+            focusedIds={focusedIds}
+            status={selectedStatus}
+          />
         ) : null}
       </MapContainer>
     </div>

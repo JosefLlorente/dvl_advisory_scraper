@@ -46,6 +46,7 @@ create table outage_windows (
 create table affected_areas (
   id uuid primary key default gen_random_uuid(),
   advisory_id uuid not null references advisories (id) on delete cascade,
+  window_id uuid references outage_windows (id) on delete set null,
   raw_text text not null,
   normalized_name text,
   barangay text,
@@ -87,6 +88,7 @@ create table scrape_runs (
 create index outage_windows_advisory_id_idx on outage_windows (advisory_id);
 create index outage_windows_start_at_idx on outage_windows (start_at);
 create index affected_areas_advisory_id_idx on affected_areas (advisory_id);
+create index affected_areas_window_id_idx on affected_areas (window_id);
 create index advisories_published_at_idx on advisories (published_at desc);
 create index parse_failures_created_at_idx on parse_failures (created_at desc);
 

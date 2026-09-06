@@ -38,6 +38,7 @@ type WindowRow = {
 type AreaRow = {
   id: string;
   advisory_id: string;
+  window_id: string | null;
   raw_text: string;
   normalized_name: string | null;
   barangay: string | null;
@@ -60,6 +61,7 @@ function mapArea(row: AreaRow): AffectedArea {
   return {
     id: row.id,
     advisoryId: row.advisory_id,
+    windowId: row.window_id ?? null,
     rawText: row.raw_text,
     normalizedName: row.normalized_name,
     barangay: row.barangay,
@@ -134,7 +136,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     supabase
       .from("affected_areas")
       .select(
-        "id, advisory_id, raw_text, normalized_name, barangay, lat, lng, geocode_confidence",
+        "id, advisory_id, window_id, raw_text, normalized_name, barangay, lat, lng, geocode_confidence",
       ),
   ]);
 
@@ -142,10 +144,26 @@ export async function getDashboardData(): Promise<DashboardData> {
     throw new Error(advisoriesRes.error.message);
   }
 
+  let areaRows = (areasRes.data ?? []) as AreaRow[];
+  if (areasRes.error) {
+    const fallback = await supabase
+      .from("affected_areas")
+      .select(
+        "id, advisory_id, raw_text, normalized_name, barangay, lat, lng, geocode_confidence",
+      );
+    if (fallback.error) {
+      throw new Error(areasRes.error.message);
+    }
+    areaRows = (fallback.data ?? []).map((row) => ({
+      ...row,
+      window_id: null,
+    })) as AreaRow[];
+  }
+
   const advisories = assemble(
     (advisoriesRes.data ?? []) as AdvisoryRow[],
     (windowsRes.data ?? []) as WindowRow[],
-    (areasRes.data ?? []) as AreaRow[],
+    areaRows,
   );
 
   const lastUpdated =

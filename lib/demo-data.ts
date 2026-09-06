@@ -31,6 +31,7 @@ export const DEMO_ADVISORIES: Advisory[] = [
       {
         id: "demo-sept-8-a1",
         advisoryId: "demo-sept-8",
+        windowId: "demo-sept-8-w1",
         rawText: "Purok 24 Samulco Village along Catalunan Pequeno Road going to Cawa Cawa",
         normalizedName: "Catalunan Pequeno",
         barangay: "Catalunan Pequeno",
@@ -41,6 +42,7 @@ export const DEMO_ADVISORIES: Advisory[] = [
       {
         id: "demo-sept-8-a2",
         advisoryId: "demo-sept-8",
+        windowId: "demo-sept-8-w1",
         rawText: "Hedcor Talomo Plant 3",
         normalizedName: "Hedcor Talomo Plant 3",
         barangay: null,
@@ -51,6 +53,7 @@ export const DEMO_ADVISORIES: Advisory[] = [
       {
         id: "demo-sept-8-a3",
         advisoryId: "demo-sept-8",
+        windowId: "demo-sept-8-w1",
         rawText: "Villa Constancia Subdivision",
         normalizedName: "Villa Constancia Subdivision",
         barangay: "Catalunan Pequeno",
@@ -96,6 +99,7 @@ export const DEMO_ADVISORIES: Advisory[] = [
       {
         id: "demo-sept-6-a1",
         advisoryId: "demo-sept-6",
+        windowId: "demo-sept-6-w1",
         rawText: "Panabo Wharf area, from Petron Gas Station to Anflo Industrial Estate",
         normalizedName: "Panabo Wharf",
         barangay: null,
@@ -106,6 +110,7 @@ export const DEMO_ADVISORIES: Advisory[] = [
       {
         id: "demo-sept-6-a2",
         advisoryId: "demo-sept-6",
+        windowId: "demo-sept-6-w2",
         rawText: "SM Lanang and nearby areas",
         normalizedName: "SM Lanang",
         barangay: "Lanang",
@@ -143,6 +148,7 @@ export const DEMO_ADVISORIES: Advisory[] = [
       {
         id: "demo-cancelled-a1",
         advisoryId: "demo-cancelled",
+        windowId: "demo-cancelled-w1",
         rawText: "MacArthur Highway, Matina, including NCCC Centerpoint",
         normalizedName: "Matina",
         barangay: "Matina Crossing",
@@ -180,6 +186,7 @@ export const DEMO_ADVISORIES: Advisory[] = [
       {
         id: "demo-aug-23-a1",
         advisoryId: "demo-aug-23",
+        windowId: "demo-aug-23-w1",
         rawText: "the entire Catigan, from the Task Force checkpoint corner Sirawan and Catigan Road",
         normalizedName: "Catigan",
         barangay: "Catigan",

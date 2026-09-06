@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default function TermsPage() {
   return (
     <LegalShell title="Terms">
-      <p className="text-xs text-muted-foreground">Last updated September 5, 2026</p>
+      <p className="text-xs text-muted-foreground">Last updated September 6, 2026</p>
       <p>
         This site is an unofficial index of public Davao Light interruption
         advisories. It is not affiliated with, endorsed by, or operated by Davao
@@ -22,7 +22,9 @@ export default function TermsPage() {
       </p>
       <p>
         The map is a convenience view. Circle locations are approximate and do
-        not mean every address inside a circle will lose power.
+        not mean every address inside a circle will lose power. Am I affected?
+        only compares your browser location to those pins. A miss is not a
+        guarantee of power.
       </p>
       <p>
         Use the site at your own risk. The maintainer is not responsible for

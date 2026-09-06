@@ -43,6 +43,7 @@ Semantic theme variables live in `app/globals.css`. Do not hardcode hex in compo
 | `--background` / `--foreground` | Page canvas and primary text |
 | `--card` / `--muted` | Panels and secondary surfaces |
 | `--border` / `--ring` | Dividers and focus |
+| `--accent` / `--primary` | Teal `#1d646b` for controls and live accent |
 | `--status-upcoming` | Scheduled, not started |
 | `--status-active` / `--status-outage` | Happening now |
 | `--status-completed` | Window has ended (`resolved` in ui.mdc) |
@@ -59,14 +60,16 @@ Semantic theme variables live in `app/globals.css`. Do not hardcode hex in compo
 
 ## Components
 
-Build on shadcn/ui: `Button`, `Badge`, `Card`, `Tabs`, `Sheet`, `Skeleton`. Reuse `StatusBadge` for every status chip.
+Build on shadcn/ui: `Button`, `Badge`, `Card`, `Tabs`, `Dialog`, `Sheet`, `Skeleton`. Reuse `StatusBadge` for every status chip.
 
 ## Layout
 
 1. Full-bleed Mindanao map.
-2. Floating sidebar: title, live/last-updated, refresh, hide/show, list, legal/socials.
-3. List: All / Upcoming / Active / Past tabs with counts.
-4. Detail: expand on the card with windows, areas, reason, type, source link.
+2. Desktop: floating sidebar — title, live/last-updated, Am I affected?, refresh, hide/show, list, legal/socials.
+3. Mobile: Advisories button opens a dialog (not a sidebar) with the same list and header. Am I affected? also sits on the map chrome.
+4. List: All / Upcoming / Active / Past tabs with counts.
+5. Detail: expand on the card with reason, timeframes, a bulleted area list, type, source link. Multi-window: tap a timeframe to expand its area chips.
+6. Multi-window map: bottom-left timeframe control is collapsed by default; selected-window pins stay full opacity, others dim.
 
 ## States
 
@@ -74,3 +77,4 @@ Build on shadcn/ui: `Button`, `Badge`, `Card`, `Tabs`, `Sheet`, `Skeleton`. Reus
 - Empty: one short sentence per tab, no illustrations.
 - Error: plain message plus retry.
 - Failed parse: show title and source link; do not invent times or areas.
+- Am I affected?: browser geolocation vs already-loaded pins; denied / no match is a short line, never invented coverage.

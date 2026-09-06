@@ -31,6 +31,7 @@ def test_single_date_window_and_areas():
     assert any("Samulco" in area for area in parsed["areas"])
     assert any("Villa Constancia" in area for area in parsed["areas"])
     assert parsed["reason"]
+    assert all(row.get("window_index") == 0 for row in parsed["area_rows"])
 
 
 def test_multi_date_and_between_window():
@@ -52,6 +53,7 @@ def test_multi_date_and_between_window():
     assert not any("nearby" in area.lower() for area in parsed["areas"])
     assert not any("," in area for area in parsed["areas"])
     assert not any(re.search(r"portion of J$", area) for area in parsed["areas"])
+    assert all(row.get("window_index") is None for row in parsed["area_rows"])
 
 
 def test_cancelled_keeps_windows():

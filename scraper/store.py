@@ -18,8 +18,12 @@ def get_client() -> Client:
 
 
 def existing_urls(client: Client) -> set[str]:
-    result = client.table("advisories").select("source_url").execute()
-    return {row["source_url"] for row in result.data or []}
+    return set(existing_listings(client))
+
+
+def existing_listings(client: Client) -> dict[str, dict[str, Any]]:
+    result = client.table("advisories").select("id, source_url, title, raw_text").execute()
+    return {row["source_url"]: row for row in result.data or []}
 
 
 def urls_needing_reparse(client: Client) -> set[str]:
@@ -85,6 +89,40 @@ def find_related_advisory(client: Client, title: str) -> dict[str, Any] | None:
     return None
 
 
+def match_window_rows(
+    parsed_windows: list[dict[str, Any]],
+    fetched: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    remaining = list(fetched)
+    matched: list[dict[str, Any]] = []
+    for window in parsed_windows:
+        hit = next(
+            (
+                row
+                for row in remaining
+                if row.get("start_at") == window["start_at"]
+                and row.get("end_at") == window["end_at"]
+            ),
+            None,
+        )
+        if hit:
+            remaining.remove(hit)
+            matched.append(hit)
+        elif remaining:
+            matched.append(remaining.pop(0))
+    return matched
+
+
+def window_id_for_area(
+    area: dict[str, Any],
+    window_rows: list[dict[str, Any]],
+) -> str | None:
+    index = area.get("window_index")
+    if isinstance(index, int) and 0 <= index < len(window_rows):
+        return window_rows[index]["id"]
+    return None
+
+
 def upsert_advisory(client: Client, fetched: dict[str, Any], parsed: dict[str, Any]) -> str:
     existing = (
         client.table("advisories")
@@ -142,10 +180,11 @@ def upsert_advisory(client: Client, fetched: dict[str, Any], parsed: dict[str, A
         action = "inserted"
 
     if replace_children:
-        client.table("outage_windows").delete().eq("advisory_id", advisory_id).execute()
         client.table("affected_areas").delete().eq("advisory_id", advisory_id).execute()
+        client.table("outage_windows").delete().eq("advisory_id", advisory_id).execute()
+        window_rows: list[dict[str, Any]] = []
         if parsed["windows"]:
-            client.table("outage_windows").insert(
+            inserted = client.table("outage_windows").insert(
                 [
                     {
                         "advisory_id": advisory_id,
@@ -156,20 +195,38 @@ def upsert_advisory(client: Client, fetched: dict[str, Any], parsed: dict[str, A
                     for window in parsed["windows"]
                 ]
             ).execute()
+            window_rows = inserted.data or []
+            if len(window_rows) != len(parsed["windows"]):
+                fetched = (
+                    client.table("outage_windows")
+                    .select("id, start_at, end_at, raw_date_text")
+                    .eq("advisory_id", advisory_id)
+                    .execute()
+                    .data
+                    or []
+                )
+                window_rows = match_window_rows(parsed["windows"], fetched)
         if parsed.get("geocoded_areas"):
-            client.table("affected_areas").insert(
-                [
-                    {
-                        "advisory_id": advisory_id,
-                        "raw_text": area["raw_text"],
-                        "normalized_name": area.get("normalized_name"),
-                        "barangay": area.get("barangay"),
-                        "lat": area.get("lat"),
-                        "lng": area.get("lng"),
-                        "geocode_confidence": area.get("geocode_confidence") or "pending",
-                    }
-                    for area in parsed["geocoded_areas"]
-                ]
-            ).execute()
+            area_rows = [
+                {
+                    "advisory_id": advisory_id,
+                    "window_id": window_id_for_area(area, window_rows),
+                    "raw_text": area["raw_text"],
+                    "normalized_name": area.get("normalized_name"),
+                    "barangay": area.get("barangay"),
+                    "lat": area.get("lat"),
+                    "lng": area.get("lng"),
+                    "geocode_confidence": area.get("geocode_confidence") or "pending",
+                }
+                for area in parsed["geocoded_areas"]
+            ]
+            try:
+                client.table("affected_areas").insert(area_rows).execute()
+            except Exception as exc:
+                if "window_id" not in str(exc).lower():
+                    raise
+                for row in area_rows:
+                    row.pop("window_id", None)
+                client.table("affected_areas").insert(area_rows).execute()
 
     return action

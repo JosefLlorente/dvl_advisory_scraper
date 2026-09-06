@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AdvisoryDetail } from "@/components/advisory-detail";
 import { StatusBadge } from "@/components/status-badge";
@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatWindow } from "@/lib/format";
 import type { Advisory } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { defaultWindowId, windowById } from "@/lib/windows";
 
 const PAGE_SIZE = 5;
 
@@ -39,23 +40,45 @@ function filterAdvisories(advisories: Advisory[], tab: ListTab): Advisory[] {
   return advisories.filter((advisory) => advisory.status === tab);
 }
 
+function revealState(advisories: Advisory[], revealId?: string | null) {
+  const advisory = revealId
+    ? advisories.find((item) => item.id === revealId)
+    : undefined;
+  const tab: ListTab =
+    advisory?.status === "active" || advisory?.status === "upcoming"
+      ? advisory.status
+      : "all";
+  const list = filterAdvisories(advisories, tab);
+  const index = revealId ? list.findIndex((item) => item.id === revealId) : -1;
+  return {
+    tab,
+    page: index >= 0 ? Math.floor(index / PAGE_SIZE) : 0,
+  };
+}
+
 function AdvisoryCard({
   advisory,
   selected,
+  selectedWindowId,
+  cardIdPrefix,
   onSelect,
+  onSelectWindow,
 }: {
   advisory: Advisory;
   selected: boolean;
+  selectedWindowId: string | null;
+  cardIdPrefix: string;
   onSelect: (id: string) => void;
+  onSelectWindow: (windowId: string) => void;
 }) {
-  const window = advisory.windows[0];
+  const window = windowById(advisory, defaultWindowId(advisory));
 
   return (
     <div
-      id={`advisory-${advisory.id}`}
+      id={`${cardIdPrefix}advisory-${advisory.id}`}
       className={cn(
         "w-full overflow-hidden rounded-lg border border-border bg-card text-left transition-[border-color,box-shadow,background-color] duration-300",
-        selected && "border-foreground/20 bg-muted/80 shadow-sm",
+        selected && "border-accent bg-muted/80 shadow-sm",
       )}
     >
       <button
@@ -74,7 +97,11 @@ function AdvisoryCard({
           {advisory.parseConfidence === "failed"
             ? "Details unavailable — view original advisory"
             : window
-              ? formatWindow(window.startAt, window.endAt)
+              ? `${formatWindow(window.startAt, window.endAt)}${
+                  advisory.windows.length > 1
+                    ? ` · ${advisory.windows.length} timeframes`
+                    : ""
+                }`
               : "Schedule unavailable"}
         </p>
       </button>
@@ -85,7 +112,12 @@ function AdvisoryCard({
         )}
       >
         <div className="overflow-hidden">
-          <AdvisoryDetail advisory={advisory} className="px-3 pb-3" />
+          <AdvisoryDetail
+            advisory={advisory}
+            selectedWindowId={selectedWindowId}
+            onSelectWindow={onSelectWindow}
+            className="px-3 pb-3"
+          />
         </div>
       </div>
     </div>
@@ -95,14 +127,25 @@ function AdvisoryCard({
 export function OutageList({
   advisories,
   selectedId,
+  selectedWindowId,
+  revealId,
+  revealNonce,
+  cardIdPrefix = "",
   onSelect,
+  onSelectWindow,
 }: {
   advisories: Advisory[];
   selectedId: string | null;
+  selectedWindowId: string | null;
+  revealId?: string | null;
+  revealNonce?: number;
+  cardIdPrefix?: string;
   onSelect: (id: string) => void;
+  onSelectWindow: (windowId: string) => void;
 }) {
-  const [tab, setTab] = useState<ListTab>("all");
-  const [page, setPage] = useState(0);
+  const initial = revealState(advisories, revealId);
+  const [tab, setTab] = useState<ListTab>(initial.tab);
+  const [page, setPage] = useState(initial.page);
   const selected = advisories.find((advisory) => advisory.id === selectedId);
   const counts = {
     all: advisories.length,
@@ -121,6 +164,25 @@ export function OutageList({
     safePage * PAGE_SIZE,
     safePage * PAGE_SIZE + PAGE_SIZE,
   );
+
+  useEffect(() => {
+    if (!revealId) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const node = document.getElementById(
+        `${cardIdPrefix}advisory-${revealId}`,
+      );
+      if (!node || node.getClientRects().length === 0) {
+        return;
+      }
+      node.scrollIntoView({
+        block: "nearest",
+        behavior: "smooth",
+      });
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [cardIdPrefix, revealId, revealNonce]);
 
   function handleTabChange(value: string) {
     const next = value as ListTab;
@@ -168,7 +230,10 @@ export function OutageList({
                       <AdvisoryCard
                         advisory={advisory}
                         selected={selectedId === advisory.id}
+                        selectedWindowId={selectedWindowId}
+                        cardIdPrefix={cardIdPrefix}
                         onSelect={onSelect}
+                        onSelectWindow={onSelectWindow}
                       />
                     </li>
                   ))}

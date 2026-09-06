@@ -236,6 +236,32 @@ def extract_areas(text: str) -> list[str]:
     return [row["raw_text"] for row in extract_area_rows(text)]
 
 
+def assign_area_windows(
+    windows: list[dict[str, Any]],
+    areas: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    if len(windows) == 1:
+        for area in areas:
+            area["window_index"] = 0
+    else:
+        for area in areas:
+            area.setdefault("window_index", None)
+    return areas
+
+
+def sanitize_area_list(areas: list[str]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for index, raw in enumerate(areas):
+        piece = _normalize_area_piece(str(raw or ""))
+        piece = NEARBY_AREAS.split(piece, maxsplit=1)[0].strip()
+        key = piece.lower()
+        if _is_valid_area(piece) and key not in seen:
+            seen.add(key)
+            rows.append({"raw_text": piece, "included": index > 0})
+    return rows
+
+
 def _windows_from_match(
     start_text: str,
     end_text: str,
@@ -429,7 +455,7 @@ def parse_advisory(
 ) -> dict[str, Any]:
     body = APOLOGY_START.split(raw_text, maxsplit=1)[0]
     windows = extract_windows(body, published_at)
-    areas = extract_area_rows(body)
+    areas = assign_area_windows(windows, extract_area_rows(body))
     cancelled = detect_cancelled(title, body)
 
     if parse_confidence:
