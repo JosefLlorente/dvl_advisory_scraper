@@ -16,6 +16,11 @@ export default function TermsPage() {
         Light and Power Co., Inc.
       </p>
       <p>
+        Sudden or unreported power outages are not covered. This site only
+        indexes official Davao Light advisories that were posted on their public
+        pages.
+      </p>
+      <p>
         Times, areas, and status are parsed from source pages and may be late,
         incomplete, or wrong. Always confirm against the original advisory
         linked on each card before you rely on it.

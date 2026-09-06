@@ -17,6 +17,10 @@ export function SiteFooter({ compact = false }: { compact?: boolean }) {
         compact ? "px-4 py-3" : "px-4 py-3 md:px-6",
       )}
     >
+      <p className="mb-2 text-xs text-muted-foreground">
+        Sudden power outages are not covered. Only official Davao Light
+        advisories are listed.
+      </p>
       <div
         className={cn(
           "flex flex-wrap gap-x-4 gap-y-2",
