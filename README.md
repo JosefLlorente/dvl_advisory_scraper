@@ -51,7 +51,5 @@ GitHub Actions (`.github/workflows/scrape.yml`) runs `python -m scraper` every h
 Vercel Cron hits `/api/cron/scrape` every hour as a status check of `scrape_runs`. Protect manual calls with `Authorization: Bearer $CRON_SECRET`.
 
 ## License
-
 Code in this repository is licensed under the [MIT License](LICENSE). Copyright © 2026 Josef Llorente.
-
 The MIT license covers the application and scraper source only. It does not apply to Davao Light advisories or OpenStreetMap data.
